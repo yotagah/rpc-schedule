@@ -1,0 +1,15 @@
+header {
+    position: fixed;
+    display: flex;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: #306497;
+    padding: 2rem;
+    justify-content: center;
+    z-index: 100;
+}
+
+header img {
+    height: 2rem;
+}
