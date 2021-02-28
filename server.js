@@ -50,10 +50,8 @@ app.get('/api/programmes/:date', async (req, res) =>
 
 		const list = [...listYesterday, ...listToday];
 
-		const timezoneOffset = (new Date()).getTimezoneOffset() * 60;
-
 		const filteredList = list.filter((program) => {
-			return program.start_time < (tomorrowDate.getTime()/1000 + timezoneOffset) && program.end_time > (todayDate.getTime()/1000 + timezoneOffset);
+			return program.start_time < (tomorrowDate.getTime()/1000) && program.end_time > (todayDate.getTime()/1000);
 		});
 
 		const compactList = filteredList.map((program) => {
