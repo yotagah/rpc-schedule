@@ -24,7 +24,6 @@ app.use(session({
 app.get('/api/programmes/:date', async (req, res) =>
 {
 	const today = req.params.date;
-	const todayDate = new Date(today);
 
 	const yesterdayDate = new Date(today);
 	yesterdayDate.setDate(yesterdayDate.getDate()-1);
