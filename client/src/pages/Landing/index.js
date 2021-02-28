@@ -8,60 +8,86 @@ import './styles.css'
 
 function Landing()
 {
-	const nowDate = new Date();
-	const todayURL =
-		nowDate.getFullYear() + '-' +
-		(nowDate.getMonth()+1).toString().padStart(2,'0') + '-' +
-		nowDate.getDate().toString().padStart(2,'0');
+	const [currentDateURL, setCurrentDateURL] = useState('');
+	const [nextDateURL, setNextDateURL] = useState('');
+	const [previousDateURL, setPreviousDateURL] = useState('');
+	const [currentDate, setCurrentDate] = useState(new Date());
+	const [nextDate, setNextDate] = useState(new Date());
+	const [previousDate, setPreviousDate] = useState(new Date());
 
-	const [dateURL, setDateURL] = useState(todayURL);
 	const [loadingList, setLoadingList] = useState(true);
 	const [list, setList] = useState(Array(0));
 	const [loadingDescription, setLoadingDescription] = useState(true);
 	const [description, setDescription] = useState({});
 	const [loadingPage, setLoadingPage] = useState(true);
 
+	const setDates = (current) =>
+	{
+		const timezoneOffset = (new Date()).getTimezoneOffset();
+
+		const currentDate = new Date(current);
+		currentDate.setMinutes(currentDate.getMinutes()+timezoneOffset);
+		setCurrentDate(currentDate);
+		setCurrentDateURL(currentDate.toISOString().split('T')[0]);
+
+		const nextDate = new Date(current);
+		nextDate.setDate(nextDate.getDate()+1);
+		nextDate.setMinutes(nextDate.getMinutes()+timezoneOffset);
+		setNextDate(nextDate);
+		setNextDateURL(nextDate.toISOString().split('T')[0]);
+
+		const previousDate = new Date(current);
+		previousDate.setDate(previousDate.getDate()-1);
+		previousDate.setMinutes(previousDate.getMinutes()+timezoneOffset);
+		setPreviousDate(previousDate);
+		setPreviousDateURL(previousDate.toISOString().split('T')[0]);
+	}
+
 	useEffect(() => {
-        api.get('programmes/'+dateURL)
-			.then((response) => {
-				const list = response.data;
+		const nowDate = new Date();
+		const todayURL =
+			nowDate.getFullYear() + '-' +
+			(nowDate.getMonth()+1).toString().padStart(2,'0') + '-' +
+			nowDate.getDate().toString().padStart(2,'0');
+		setDates(todayURL);
+	}, []);
 
-				const timezoneOffset = (new Date()).getTimezoneOffset() * 60;
+	useEffect(() => {
+		if(currentDateURL) {
+			api.get('programmes/'+currentDateURL)
+				.then((response) => {
+					const list = response.data;
 
-				const todayDate = new Date(dateURL);
+					// Filter the list to the day time (00:00 - 23:59), it's done here (and not in API) to use client timezone
+					const filteredList = list.filter((program) => {
+						return program.startTimestamp < (nextDate.getTime()/1000) && program.endTimestamp > (currentDate.getTime()/1000);
+					});
 
-				const tomorrowDate = new Date(dateURL);
-				tomorrowDate.setDate(tomorrowDate.getDate()+1);
+					filteredList.map((program) => {
+						const nowUTCTimestamp = Math.floor(Date.now()/1000);
+						program.onAir = nowUTCTimestamp >= program.startTimestamp && nowUTCTimestamp < program.endTimestamp;
 
-				// Filter the list to the day time (00:00 - 23:59), it's done here (and not in API) to use client timezone
-				const filteredList = list.filter((program) => {
-					return program.startTimestamp < (tomorrowDate.getTime()/1000 + timezoneOffset) && program.endTimestamp > (todayDate.getTime()/1000 + timezoneOffset);
+						if(program.onAir) {
+							api.get('program/'+currentDateURL+'/'+program.id)
+								.then((response) => {
+									setLoadingDescription(false);
+									setDescription(response.data);
+								});
+						}
+
+						program.active = program.onAir;
+						return program;
+					});
+
+					setList(filteredList);
+					setLoadingList(false);
 				});
-
-				filteredList.map((program) => {
-					const nowUTCTimestamp = Math.floor(Date.now()/1000);
-					program.onAir = nowUTCTimestamp >= program.startTimestamp && nowUTCTimestamp < program.endTimestamp;
-
-					if(program.onAir) {
-						api.get('program/'+dateURL+'/'+program.id)
-							.then((response) => {
-								setLoadingDescription(false);
-								setDescription(response.data);
-							});
-					}
-
-					program.active = program.onAir;
-					return program;
-				});
-
-				setList(filteredList);
-				setLoadingList(false);
-        	});
-    }, [dateURL]);
+		}
+    }, [currentDateURL, currentDate, nextDate]);
 
 	const scrollTo = (id) => {
 		const element = document.getElementById(id);
-		window.scrollTo(0, element.offsetTop - 60);
+		window.scrollTo(0, element.offsetTop - 108);
 	};
 
 	useEffect(() => {
@@ -75,7 +101,7 @@ function Landing()
 		if(!loadingDescription && !loadingList) {
 			setLoadingPage(false);
 		}
-	}, [loadingDescription, loadingDescription]);
+	}, [loadingDescription, loadingList]);
 
 	const handleActiveProgramChange = (id, startTimestamp) => {
 		let change = false;
@@ -87,7 +113,7 @@ function Landing()
 				change = true;
 				setTimeout(() => scrollTo('program_'+program.startTimestamp), 100);
 				setLoadingDescription(true);
-				api.get('program/'+dateURL+'/'+program.id)
+				api.get('program/'+currentDateURL+'/'+program.id)
 					.then((response) => {
 						setLoadingDescription(false);
 						setDescription(response.data);
@@ -106,7 +132,7 @@ function Landing()
 
 	return (
 		<div className="container" id="programList">
-			<PageHeader />
+			<PageHeader currentDate={currentDate}/>
 			{ list.map((program, index) => {
 
 				let programDate = new Date(program.startTimestamp * 1000);

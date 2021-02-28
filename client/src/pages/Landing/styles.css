@@ -37,8 +37,8 @@
 #programList .description-container {
     position: fixed;
     left: 50%;
-    top: 6rem;
-    height: calc(100% - 6rem);
+    top: 11.3rem;
+    height: calc(100% - 11.3rem);
     bottom: 0;
     background-color: #306497;
     z-index: 10;
@@ -48,7 +48,7 @@
 
 #programList .description {
     color: #fff;
-    padding: 5rem;
+    padding: 4rem;
     transition: max-height 0.25s ease-out;
 }
 
