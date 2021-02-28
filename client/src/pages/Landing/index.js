@@ -8,29 +8,44 @@ import './styles.css'
 
 function Landing()
 {
-	const timezoneOffset = (new Date()).getTimezoneOffset() * 60000;
-	const nowUTCTimestamp = Date.now();
-	const nowTimezoneDate = new Date(nowUTCTimestamp - timezoneOffset);
+	const nowDate = new Date();
+	const todayURL =
+		nowDate.getFullYear() + '-' +
+		(nowDate.getMonth()+1).toString().padStart(2,'0') + '-' +
+		nowDate.getDate().toString().padStart(2,'0');
 
-	const todayURL = '2021-02-27';//nowTimezoneDate.toISOString().split('T')[0];
-	const nowTimestamp = Math.floor(nowTimezoneDate.getTime()/1000);
-
+	const [dateURL, setDateURL] = useState(todayURL);
+	const [loadingList, setLoadingList] = useState(true);
 	const [list, setList] = useState(Array(0));
+	const [loadingDescription, setLoadingDescription] = useState(true);
+	const [description, setDescription] = useState({});
+	const [loadingPage, setLoadingPage] = useState(true);
 
 	useEffect(() => {
-        api.get('programmes/'+todayURL)
+        api.get('programmes/'+dateURL)
 			.then((response) => {
 				const list = response.data;
 
 				list.map((program) => {
-					program.onAir = nowTimestamp >= program.startTimestamp && nowTimestamp < program.endTimestamp;
+					const nowUTCTimestamp = Math.floor(Date.now()/1000);
+					program.onAir = nowUTCTimestamp >= program.startTimestamp && nowUTCTimestamp < program.endTimestamp;
+
+					if(program.onAir) {
+						api.get('program/'+dateURL+'/'+program.id)
+							.then((response) => {
+								setLoadingDescription(false);
+								setDescription(response.data);
+							});
+					}
+
 					program.active = program.onAir;
 					return program;
 				});
 
 				setList(list);
+				setLoadingList(false);
         	});
-    }, []);
+    }, [dateURL]);
 
 	const scrollTo = (id) => {
 		const element = document.getElementById(id);
@@ -38,44 +53,92 @@ function Landing()
 	};
 
 	useEffect(() => {
-		const activeProgram = list.find(program => program.active);
-		if(activeProgram) {
-			scrollTo('program_'+activeProgram.id);
+		if(!loadingDescription) {
+			const activeProgram = list.find(program => program.active);
+			setTimeout(() => scrollTo('program_'+activeProgram.startTimestamp), 250);
 		}
-	}, [list])
+	}, [loadingDescription, list]);
 
-	const handleActiveProgramChange = (id) => {
+	useEffect(() => {
+		if(!loadingDescription && !loadingList) {
+			setLoadingPage(false);
+		}
+	}, [loadingDescription, loadingDescription]);
+
+	const handleActiveProgramChange = (id, startTimestamp) => {
+		let change = false;
+
 		const newList = list.map((program) => {
-			program.active = program.id === id;
+			const active = program.id === id && program.startTimestamp === startTimestamp;
+
+			if(active && !program.active) {
+				change = true;
+				setTimeout(() => scrollTo('program_'+program.startTimestamp), 100);
+				setLoadingDescription(true);
+				api.get('program/'+dateURL+'/'+program.id)
+					.then((response) => {
+						setLoadingDescription(false);
+						setDescription(response.data);
+					});
+			}
+
+			program.active = active;
+
 			return program;
 		});
 
-		setList(newList);
+		if(change) {
+			setList(newList);
+		}
 	}
 
 	return (
 		<div className="container" id="programList">
 			<PageHeader />
-			{ list.map((program) => {
+			{ list.map((program, index) => {
+
+				let programDate = new Date(program.startTimestamp * 1000);
+				programDate = programDate.getHours().toString().padStart(2,'0') + ':' + programDate.getMinutes().toString().padStart(2,'0');
 
 				return (
-					<div key={program.id} className={`program-container ${program.active ? 'active' : ''}`} id={`program_${program.id}`} onClick={() => handleActiveProgramChange(program.id)}>
+					<div key={index} className={`program-container ${program.active ? 'active' : ''}`} id={`program_${program.startTimestamp}`} onClick={() => handleActiveProgramChange(program.id, program.startTimestamp)}>
 						<div className="program">
 							<img src={program.icon} alt={program.title} />
-							<div className="time">{ program.onAir ? <div className="on-air">NO AR</div> : program.time.substring(0, 5) }</div>
+							<div className="time">{ program.onAir ? <div className="on-air">NO AR</div> : programDate }</div>
 							<div className="title">{program.title}</div>
 							{ program.active && <div className="arrow"></div> }
 						</div>
 						{ program.active &&
 							<div className="description-container">
-								<div className="description">
-									Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse sollicitudin lectus eget nulla pharetra, et laoreet magna sodales. Nullam at ante eu nisi eleifend condimentum. Aliquam ac scelerisque metus, a convallis erat. Vivamus egestas neque lacus, sit amet blandit est tincidunt eu. Phasellus nec lacus a dolor maximus elementum. Nullam lacus elit, ullamcorper id sapien dapibus, molestie tempus sem. Praesent bibendum finibus eros quis venenatis. Sed posuere accumsan urna, quis euismod risus dignissim et.
+								<div className="description" style={loadingDescription ? {maxHeight: 58} : {maxHeight: 1000}}>
+									{ loadingDescription ? 
+										<div className="loading">Carregando...</div>
+										:
+										<div>
+											<p>{description.custom_info && description.custom_info.Resumos.ResumoImprensa ? description.custom_info.Resumos.ResumoImprensa : description.description}</p>
+											{description.custom_info && <span className="tags">{description.custom_info.Video}</span>}
+											{description.custom_info && description.custom_info.ClosedCaption && <span className="tags">CC</span>}
+											{description.custom_info && description.custom_info.Tipo === "Filme" &&
+												<div className="more">
+													<strong>MAIS INFORMAÇÕES</strong><br/><br/>
+													<strong>Título Original:</strong> {description.custom_info.TituloOriginal}<br/><br/>
+													<strong>Elenco:</strong> {description.custom_info.Elenco}<br/><br/>
+													<strong>Dubladores:</strong> {description.custom_info.Dubladores}<br/><br/>
+													<strong>Direção:</strong> {description.custom_info.Diretor}<br/><br/>
+													<strong>Nacionalidade:</strong> {description.custom_info.Pais}<br/><br/>
+													<strong>Gênero:</strong> {description.custom_info.Classe}
+												</div>
+											}
+											{description.custom_info && description.custom_info.Graficos.ImagemURL && <div className="image" style={{backgroundImage: `url('${description.custom_info.Graficos.ImagemURL}')`}}></div>}
+										</div>
+									}
 								</div>
 							</div>
 						}
 					</div>
 				);
 			}) }
+			{ loadingPage && <div className="page-loader"><img src="loader.gif" alt="Carregando..." /></div> }
 		</div>
 	)
 }

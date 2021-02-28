@@ -11,12 +11,10 @@ const broadcasterId = 1337; // 1337 is the RPC id
  * Return error message when bad request
  */
 
-const dailyProgrammesLoader = async (req) =>
+const dailyProgrammesLoader = async (date, request) =>
 {
-    const date = req.params.date;
-
-    if(!req.session.buffer) {
-        req.session.buffer = {};
+    if(!request.session.buffer) {
+        request.session.buffer = {};
     }
 
     let programmes = {
@@ -28,13 +26,13 @@ const dailyProgrammesLoader = async (req) =>
     let badRequest = false;
     let errorMessage = {};
 
-    if(!req.session.buffer[date])
+    if(!request.session.buffer[date])
     {
         await axios
-            .get(`https://epg-api.video.globo.com/programmes/${broadcasterId}?date=${req.params.date}`)
+            .get(`https://epg-api.video.globo.com/programmes/${broadcasterId}?date=${date}`)
             .then(response => {
                 programmes = response.data;
-                req.session.buffer[date] = programmes;
+                request.session.buffer[date] = programmes;
                 console.log('-- Data loaded from Globo API');
             })
             .catch(error => {
@@ -49,7 +47,7 @@ const dailyProgrammesLoader = async (req) =>
     }
     else
     {
-        programmes = req.session.buffer[date];
+        programmes = request.session.buffer[date];
     }
 
     if(!badRequest) {

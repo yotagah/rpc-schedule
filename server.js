@@ -23,17 +23,43 @@ app.use(session({
 // Get the full list of programs of the day filtering the relevant attributes
 app.get('/api/programmes/:date', async (req, res) =>
 {
-	const data = await dailyProgrammesLoader(req);
+	const today = req.params.date;
+	const todayDate = new Date(today);
 
-	if(data.programme)
+	const yesterdayDate = new Date(today);
+	yesterdayDate.setDate(yesterdayDate.getDate()-1);
+	const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+	const tomorrowDate = new Date(today);
+	tomorrowDate.setDate(tomorrowDate.getDate()+1);
+
+	const dataToday = await dailyProgrammesLoader(today, req);
+	const dataYesterday = await dailyProgrammesLoader(yesterday, req);
+
+	if(dataToday.programme && dataYesterday.programme)
 	{
-		const list = data.programme.entries;
+		const listToday = dataToday.programme.entries;
+		const listYesterday = dataYesterday.programme.entries;
 
-		const compactList = list.map((program) => {
+		const firstProgramToday = listToday[0];
+		const lastProgramYesterday = listYesterday[listYesterday.length-1];
+
+		if(firstProgramToday.media_id === lastProgramYesterday.media_id) {
+			listYesterday.pop();
+		}
+
+		const list = [...listYesterday, ...listToday];
+
+		const timezoneOffset = (new Date()).getTimezoneOffset() * 60;
+
+		const filteredList = list.filter((program) => {
+			return program.start_time < (tomorrowDate.getTime()/1000 + timezoneOffset) && program.end_time > (todayDate.getTime()/1000 + timezoneOffset);
+		});
+
+		const compactList = filteredList.map((program) => {
 			return {
 				id: program.media_id,
 				title: program.title,
-				time: program.human_start_time,
 				startTimestamp: program.start_time,
 				endTimestamp: program.end_time,
 				icon: program.custom_info.Graficos.LogoURL
@@ -44,26 +70,41 @@ app.get('/api/programmes/:date', async (req, res) =>
 	}
 	else
 	{
-		res.status(data.status).send(data.error);
+		if(dataToday.programme) {
+			res.status(dataYesterday.status).send(dataYesterday.error);
+		} else {
+			res.status(dataToday.status).send(dataToday.error);
+		}
 	}
 });
 
 // Get the relevant description of a program
 app.get('/api/program/:date/:id', async (req, res) =>
 {
-	const data = await dailyProgrammesLoader(req);
+	const today = req.params.date;
 
-	if(data.programme)
+	const yesterdayDate = new Date(today);
+	yesterdayDate.setDate(yesterdayDate.getDate()-1);
+	const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+	const dataToday = await dailyProgrammesLoader(today, req);
+	const dataYesterday = await dailyProgrammesLoader(yesterday, req);
+
+	if(dataToday.programme && dataYesterday.programme)
 	{
 		const mediaId = parseInt(req.params.id);
-		const programmes = data.programme.entries;
+		const programmes = [...dataYesterday.programme.entries, ...dataToday.programme.entries];
 		const programData = programmes.find(program => program.media_id === mediaId);
 
 		res.send(programData);
 	}
 	else
 	{
-		res.status(data.status).send(data.error);
+		if(dataToday.programme) {
+			res.status(dataYesterday.status).send(dataYesterday.error);
+		} else {
+			res.status(dataToday.status).send(dataToday.error);
+		}
 	}
 });
 
