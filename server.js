@@ -50,11 +50,7 @@ app.get('/api/programmes/:date', async (req, res) =>
 
 		const list = [...listYesterday, ...listToday];
 
-		const filteredList = list.filter((program) => {
-			return program.start_time < (tomorrowDate.getTime()/1000) && program.end_time > (todayDate.getTime()/1000);
-		});
-
-		const compactList = filteredList.map((program) => {
+		const compactList = list.map((program) => {
 			return {
 				id: program.media_id,
 				title: program.title,

@@ -26,7 +26,14 @@ function Landing()
 			.then((response) => {
 				const list = response.data;
 
-				list.map((program) => {
+				const timezoneOffset = (new Date()).getTimezoneOffset() * 60;
+
+				// Filter the list to the day time (00:00 - 23:59), it's done here (and not in API) to use client timezone
+				const filteredList = list.filter((program) => {
+					return program.start_time < (tomorrowDate.getTime()/1000 + timezoneOffset) && program.end_time > (todayDate.getTime()/1000 + timezoneOffset);
+				});
+
+				filteredList.map((program) => {
 					const nowUTCTimestamp = Math.floor(Date.now()/1000);
 					program.onAir = nowUTCTimestamp >= program.startTimestamp && nowUTCTimestamp < program.endTimestamp;
 
