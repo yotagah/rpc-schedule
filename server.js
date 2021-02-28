@@ -74,6 +74,8 @@ app.get('/api/program/:date/:id', async (req, res) =>
 
 if (process.env.NODE_ENV === 'production')
 {
+	const __dirname = path.resolve(path.dirname(''));
+
 	// Serve any static files
 	app.use(express.static(path.join(__dirname, 'client/build')));
 
