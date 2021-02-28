@@ -31,9 +31,11 @@ app.get('/api/programmes/:date', async (req, res) =>
 
 		const compactList = list.map((program) => {
 			return {
+				id: program.media_id,
 				title: program.title,
 				time: program.human_start_time,
-				duration: program.duration_in_minutes,
+				startTimestamp: program.start_time,
+				endTimestamp: program.end_time,
 				icon: program.custom_info.Graficos.LogoURL
 			}
 		});
