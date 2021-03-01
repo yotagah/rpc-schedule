@@ -23,6 +23,7 @@ function Landing()
 
 	const setDates = (current) =>
 	{
+		setLoadingPage(true);
 		const timezoneOffset = (new Date()).getTimezoneOffset();
 
 		const currentDate = new Date(current);
@@ -43,6 +44,7 @@ function Landing()
 		setPreviousDateURL(previousDate.toISOString().split('T')[0]);
 	}
 
+
 	useEffect(() => {
 		const nowDate = new Date();
 		const todayURL =
@@ -54,6 +56,7 @@ function Landing()
 
 	useEffect(() => {
 		if(currentDateURL) {
+			setLoadingList(true);
 			api.get('programmes/'+currentDateURL)
 				.then((response) => {
 					const list = response.data;
@@ -68,6 +71,7 @@ function Landing()
 						program.onAir = nowUTCTimestamp >= program.startTimestamp && nowUTCTimestamp < program.endTimestamp;
 
 						if(program.onAir) {
+							setLoadingDescription(true);
 							api.get('program/'+currentDateURL+'/'+program.id)
 								.then((response) => {
 									setLoadingDescription(false);
@@ -85,15 +89,12 @@ function Landing()
 		}
     }, [currentDateURL, currentDate, nextDate]);
 
-	const scrollTo = (id) => {
-		const element = document.getElementById(id);
-		window.scrollTo(0, element.offsetTop - 108);
-	};
-
 	useEffect(() => {
 		if(!loadingDescription) {
 			const activeProgram = list.find(program => program.active);
-			setTimeout(() => scrollTo('program_'+activeProgram.startTimestamp), 250);
+			if(activeProgram) {
+				setTimeout(() => scrollTo('program_'+activeProgram.startTimestamp), 250);
+			}
 		}
 	}, [loadingDescription, list]);
 
@@ -102,6 +103,12 @@ function Landing()
 			setLoadingPage(false);
 		}
 	}, [loadingDescription, loadingList]);
+
+
+	const scrollTo = (id) => {
+		const element = document.getElementById(id);
+		window.scrollTo(0, element.offsetTop - 108);
+	};
 
 	const handleActiveProgramChange = (id, startTimestamp) => {
 		let change = false;
@@ -130,17 +137,18 @@ function Landing()
 		}
 	}
 
+
 	return (
 		<div className="container" id="programList">
-			<PageHeader currentDate={currentDate}/>
+			<PageHeader currentDate={currentDate} nextDateURL={nextDateURL} previousDateURL={previousDateURL} changeDate={(newDate) => setDates(newDate)}/>
 			{ list.map((program, index) => {
 
 				let programDate = new Date(program.startTimestamp * 1000);
 				programDate = programDate.getHours().toString().padStart(2,'0') + ':' + programDate.getMinutes().toString().padStart(2,'0');
 
 				return (
-					<div key={index} className={`program-container ${program.active ? 'active' : ''}`} id={`program_${program.startTimestamp}`} onClick={() => handleActiveProgramChange(program.id, program.startTimestamp)}>
-						<div className="program">
+					<div key={index} className={`program-container ${program.active ? 'active' : ''}`} id={`program_${program.startTimestamp}`}>
+						<div className="program" onClick={() => handleActiveProgramChange(program.id, program.startTimestamp)}>
 							<img src={program.icon} alt={program.title} />
 							<div className="time">{ program.onAir ? <div className="on-air">NO AR</div> : programDate }</div>
 							<div className="title">{program.title}</div>

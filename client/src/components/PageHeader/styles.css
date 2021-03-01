@@ -23,3 +23,8 @@ header .navigator {
     text-align: center;
     font-weight: 700;
 }
+
+header .navigator .btn {
+    cursor: pointer;
+    padding: 1rem 2rem;
+}
